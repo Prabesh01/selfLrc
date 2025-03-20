@@ -26,7 +26,11 @@ SECRET_KEY = 'django-insecure-q$rcmur)4n-lrmm68d_#598dcji#cz$7mhwzwohq7!22(n(be!
 DEBUG = True
 
 ALLOWED_HOSTS = ["127.0.0.1","lrc.cote.ws"]
-
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = ["https://lrc.cote.ws"]
+CSRF_ALLOWED_ORIGINS = ["https://lrc.cote.ws"]
+CORS_ORIGINS_WHITELIST = ["https://lrc.cote.ws"]
+CORS_ALLOWED_ORIGINS = ["https://lrc.cote.ws"]
 
 # Application definition
 

@@ -2,6 +2,9 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from .models import Song
+import re
+from .utils import update_lyrics
+from django.utils.translation import gettext_lazy as _
 
 def view_perm_check(request):
     return request.user.is_superuser
@@ -35,6 +38,24 @@ class SongAdmin(admin.ModelAdmin):
             'fields': ('title', 'updated_title', 'lyrics_id', 'lyrics_db', 'delay', 'custom_lyrics', 'get_lyrics_text','user',)
         }),
     )
+
+    def save_model(self, request, obj, form, change):
+        title=obj.title
+        if obj.updated_title:
+            title=obj.updated_title
+        title_pattern = r'^(.*?) - (.*?) \[(.*?)\]$'
+        match = re.match(title_pattern, title)
+
+        if match:
+            name, artist, album = match.groups()
+            if obj.lyrics_db!=0:
+                update_lyrics(name.strip(), artist.strip(), album.strip(), obj)
+        else:
+            self.message_user(request, _("Invalid Title Format!"), level='error')
+            return
+
+        super().save_model(request, obj, form, change)
+
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
