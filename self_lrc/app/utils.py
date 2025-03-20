@@ -28,6 +28,7 @@ def search_lyrics(track, artist, album):
     
 
 def get_local_lyrics(song):
+    if not song.lyrics_db: return "[00:10.00] :(\n[00:15.00] Not Found"
     lid= song.lyrics_id
     if not lid:
         title=song.title
