@@ -21,7 +21,7 @@ class CustomPasswordChangeForm(PasswordChangeForm):
 class AddUserForm(forms.Form):
     username = forms.CharField(
         label="username",
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'username for New user '})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'username for New user '})
     )
     password = forms.CharField(
         label="Password",
