@@ -70,8 +70,12 @@ class SongAdmin(admin.ModelAdmin):
         return perm_check(request, obj)            
 
     def has_delete_permission(self, request, obj=None):
-        return perm_check(request, obj)            
-
+        if request.user.is_superuser:
+            return True        
+        if obj:
+            return request.user == obj.user
+        return True if self.get_queryset(request).exists() else False
+    
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = super().get_readonly_fields(request, obj)
         if not request.user.is_superuser:
