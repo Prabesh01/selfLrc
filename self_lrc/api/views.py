@@ -3,8 +3,12 @@ import json
 from django.http import HttpResponse
 from django.contrib.auth.models import User
 from app.models import Song
+from random import randint
+
+temp={}
 
 def search_songs(request, username):
+    global temp
     try:
         user = User.objects.get(username=username)
     except:
@@ -14,6 +18,7 @@ def search_songs(request, username):
     track_name = clean_fname(request.GET.get('track_name',''))
     artist_name = clean_fname(request.GET.get('artist_name',''))
     album_name = clean_fname(request.GET.get('album_name',''))
+    duration = request.GET.get('duration','0')
     if not q and not track_name:
         return HttpResponse(json.dumps([]), content_type="application/json")
     if q:
@@ -21,12 +26,22 @@ def search_songs(request, username):
     lrc=get_lyrics(track_name,artist_name,album_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps([]), content_type="application/json")        
-    return HttpResponse(json.dumps([{"trackName":track_name,"artistName":artist_name,"albumName":album_name, "syncedLyrics":lrc}]), content_type="application/json")
+    lid=str(randint(0,5555))
+    tosend=[{"id":lid, "name":track_name, "duration":int(duration), "instrumental":False, "plainLyrics":"", "trackName":track_name,"artistName":artist_name,"albumName":album_name, "syncedLyrics":lrc}]
+    temp[lid]=tosend[0]
+    return HttpResponse(json.dumps(tosend), content_type="application/json")
 
 def clean_fname(name):
     if '.' in name and len(name.split('.')[-1])<5:
         return '.'.join(name.split('.')[:-1])
     return name
+
+def get_lyrics_id(request, username, lid):
+    global temp
+    lrc=temp[str(lid)]
+    if len(temp)>50:
+        temp={}
+    return HttpResponse(json.dumps(lrc), content_type="application/json")
 
 def get_songs(request, username):
     try:

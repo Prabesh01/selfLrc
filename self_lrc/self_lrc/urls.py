@@ -22,6 +22,7 @@ from api import views as views_api
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('<str:username>/api/search', views_api.search_songs,name='search'),
-    path('<str:username>/api/get', views_api.get_songs,name='search'),
+    path('<str:username>/api/get/<int:lid>', views_api.get_lyrics_id,name='get_lyrics_id'),
+    path('<str:username>/api/get', views_api.get_songs,name='get_lrc'),
     path('', views_app.get_home,name='get_home'),
 ]
