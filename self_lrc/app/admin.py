@@ -48,7 +48,7 @@ class SongAdmin(admin.ModelAdmin):
 
         if match:
             name, artist, album = match.groups()
-            if obj.lyrics_db!=0:
+            if not obj.lyrics_db:
                 update_lyrics(name.strip(), artist.strip(), album.strip(), obj)
         else:
             self.message_user(request, _("Invalid Title Format!"), level='error')

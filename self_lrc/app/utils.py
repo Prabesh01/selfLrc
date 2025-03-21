@@ -1,8 +1,6 @@
 import requests
-from .models import Song
 import re
-# GET /api/<>/search?track_name=T&artist_name=A&album_name=B HTTP/1.1
-# Host: lrclib.net
+from .spotify import * 
 
 def lrclib_search(t, r, l):
     r=requests.get("https://lrclib.net/api/get?track_name="+t+"&artist_name="+r+"&album_name="+l)
@@ -12,20 +10,24 @@ def lrclib_search(t, r, l):
     else:
         return None, None
 
-def spotify_search(t, r, l):
-    pass
+def search_spotify(t, r, l):
+    lid = spotify_seach_song(t + " " + r)
+    if lid:
+        lrc = get_spotify_Lyrics(lid)
+        if not lrc:
+            return None, None
+        return lid, lrc
+    else: return None, None
 
 
 def search_lyrics(track, artist, album):
-    print('#############################################')
     lid, lrc = lrclib_search(track, artist, album)
     if lid:
         return 2, lid, lrc
-    # lid, lrc = spotify_search(track, artist, album)
-    # if lid:
-    #     return 1, lid, lrc
+    lid, lrc = search_spotify(track, artist, album)
+    if lid:
+        return 1, lid, lrc
     return False, None, "[00:10.00] :(\n[00:15.00] Not Found"
-    
 
 def get_local_lyrics(song):
     if not song.lyrics_db: return "[00:10.00] :(\n[00:15.00] Not Found"
@@ -44,20 +46,24 @@ def get_local_lyrics(song):
         else:
             return song.custom_lyrics
     ldb=song.lyrics_db
-    if ldb==0:
-        return song.custom_lyrics
-    elif ldb==2:
+    if ldb==2:
         return requests.get(f"https://lrclib.net/api/get/{lid}").json()['syncedLyrics']
-    # elif ldb==1:
-    #     pass
+    elif ldb==1:
+        return get_spotify_Lyrics(song.lyrics_id)
+    else:
+        return song.custom_lyrics
 
 
 def get_lyrics(track, artist, album, user):
+    from .models import Song
+
     song=Song.objects.filter(title=f"{track} - {artist} [{album}]")
     if song:
         return get_local_lyrics(song.first())
     else:
         lbd, lid, lrc = search_lyrics(track, artist, album)
+        if lrc=="tryAgain":
+            return lrc
         if lbd:
             Song.objects.create(user=user, title=f"{track} - {artist} [{album}]", lyrics_id=lid, lyrics_db=lbd)
         else:
