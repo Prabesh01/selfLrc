@@ -27,10 +27,10 @@ def search_lyrics(track, artist, album):
     lid, lrc = search_spotify(track, artist, album)
     if lid:
         return 1, lid, lrc
-    return False, None, "[00:10.00] :(\n[00:15.00] Not Found"
+    return False, None, "NotFound"
 
 def get_local_lyrics(song):
-    if not song.lyrics_db: return "[00:10.00] :(\n[00:15.00] Not Found"
+    if not song.lyrics_db: return "NotFound"
     lid= song.lyrics_id
     if not lid:
         title=song.title

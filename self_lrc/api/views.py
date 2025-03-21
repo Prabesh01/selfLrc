@@ -25,7 +25,11 @@ def search_songs(request, username):
         track_name=q
     lrc=get_lyrics(track_name,artist_name,album_name, user)
     if lrc=="tryAgain":
-        return HttpResponse(json.dumps([]), content_type="application/json")        
+        return HttpResponse(json.dumps([]), content_type="application/json")  
+    if lrc=="NotFound":
+        # if not 'poweramp' in request.META.get('HTTP_USER_AGENT', 'Unknown').lower():
+        return HttpResponse(json.dumps([]), content_type="application/json")      
+        # lrc="[00:10.00] :(\n[00:15.00] Not Found"
     lid=str(randint(0,5555))
     tosend=[{"id":lid, "name":track_name, "duration":int(duration), "instrumental":False, "plainLyrics":"", "trackName":track_name,"artistName":artist_name,"albumName":album_name, "syncedLyrics":lrc}]
     temp[lid]=tosend[0]
@@ -57,6 +61,8 @@ def get_songs(request, username):
     lrc=get_lyrics(track_name,artist_name,album_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps({"message":"Failed to find specified track","name":"TrackNotFound","statusCode":404}), content_type="application/json")        
+    if lrc=="NotFound":
+        lrc="[00:10.00] :(\n[00:15.00] Not Found"
     return HttpResponse(json.dumps({"syncedLyrics":lrc}), content_type="application/json")
 
 
