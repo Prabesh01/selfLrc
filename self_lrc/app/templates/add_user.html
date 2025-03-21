@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Add User</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div style="display:flex">
+    <button type="submit">Add User</button>
+    <div style="min-width: 20px;"></div>
+        <a href="/admin/">Go to Admin Panel</a>
+    </div>
+  </form>
+{% endblock %}
