@@ -74,19 +74,19 @@ def spotify_seach_song(name, i=True):
 
 def get_spotify_Lyrics(tid,i=True):
     r=requests.get(f'https://spclient.wg.spotify.com/color-lyrics/v2/track/{tid}/?format=json&market=from_token',headers={"Authorization":f"Bearer {lyrics_token}","app-platform": "WebPlayer","User-Agent":"Mozilla/5.0"})
-    if r.status_code==404:
-        return None
-    elif r.status_code==200:
-        r=r.json()['lyrics']
-        lines=r['lines']
-        return parse_lyrics(lines)
-    else: 
+    if r.status_code==401: 
         if i:
             refresh_spotify_token()
             return get_spotify_Lyrics(tid, False)
         else:
             print('cookie expired')
             return 'tryAgain'
+    elif r.status_code==200:
+        r=r.json()['lyrics']
+        lines=r['lines']
+        return parse_lyrics(lines)
+    else:
+        return None
 
 def parse_lyrics(lines):
     lyrics=''

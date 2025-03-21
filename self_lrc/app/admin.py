@@ -43,13 +43,14 @@ class SongAdmin(admin.ModelAdmin):
         title=obj.title
         if obj.updated_title:
             title=obj.updated_title
-        title_pattern = r'^(.*?) - (.*?) \[(.*?)\]$'
+        title_pattern = r'^(.*?) - (.*?)$'
         match = re.match(title_pattern, title)
 
         if match:
-            name, artist, album = match.groups()
-            if not obj.lyrics_db:
-                update_lyrics(name.strip(), artist.strip(), album.strip(), obj)
+            name, artist = match.groups()
+            # if not obj.lyrics_db:
+            if 'updated_title' in form.changed_data:
+                update_lyrics(name.strip(), artist.strip(), obj)
         else:
             self.message_user(request, _("Invalid Title Format!"), level='error')
             return

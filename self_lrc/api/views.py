@@ -23,7 +23,7 @@ def search_songs(request, username):
         return HttpResponse(json.dumps([]), content_type="application/json")
     if q:
         track_name=q
-    lrc=get_lyrics(track_name,artist_name,album_name, user)
+    lrc=get_lyrics(track_name,artist_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps([]), content_type="application/json")  
     if lrc=="NotFound":
@@ -58,7 +58,7 @@ def get_songs(request, username):
     album_name = clean_fname(request.GET.get('album_name',''))
     if not track_name:
         return HttpResponse(json.dumps({"message":"Track name not specified","name":"TrackNotProvided","statusCode":404}), content_type="application/json")
-    lrc=get_lyrics(track_name,artist_name,album_name, user)
+    lrc=get_lyrics(track_name,artist_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps({"message":"Failed to find specified track","name":"TrackNotFound","statusCode":404}), content_type="application/json")        
     if lrc=="NotFound":
