@@ -23,5 +23,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('<str:username>/api/search', views_api.search_songs,name='search'),
     path('<str:username>/api/get', views_api.get_songs,name='search'),
-    path('', views_app.get_home,name='home'),
+    path('', views_app.get_home,name='get_home'),
 ]

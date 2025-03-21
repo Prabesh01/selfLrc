@@ -4,7 +4,6 @@ from django.http import HttpResponse
 from django.contrib.auth.models import User
 from app.models import Song
 
-
 def search_songs(request, username):
     try:
         user = User.objects.get(username=username)
@@ -38,7 +37,11 @@ def get_songs(request, username):
     track_name = clean_fname(request.GET.get('track_name',''))
     artist_name = clean_fname(request.GET.get('artist_name',''))
     album_name = clean_fname(request.GET.get('album_name',''))
+    if not track_name:
+        return HttpResponse(json.dumps({"message":"Track name not specified","name":"TrackNotProvided","statusCode":404}), content_type="application/json")
     lrc=get_lyrics(track_name,artist_name,album_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps({"message":"Failed to find specified track","name":"TrackNotFound","statusCode":404}), content_type="application/json")        
     return HttpResponse(json.dumps({"syncedLyrics":lrc}), content_type="application/json")
+
+
