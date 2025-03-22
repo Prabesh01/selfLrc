@@ -94,10 +94,36 @@ async def get_local_lyrics(song):
     else:
         return custom_lyrics
 
+async def adjust_lyrics(lyrics, delay):
+    # lyrics fomatt:
+    # f"[{minutes:02}:{seconds:02}.{int(fractional_seconds * 100):02}] {line['words']}\n"
+    # speed or delay lyrics by x seconds
+    if not delay: return lyrics
+    try: delay = int(delay)
+    except: return lyrics
+    if delay==0: return lyrics
+    try:
+        lines = lyrics.split("\n")
+        new_lyrics = ""
+        for line in lines:
+            if not line: continue
+            time, words = line.split("]", 1)
+            time = time[1:]
+            minutes, seconds= time.split(":")
+            seconds, ms = seconds.split(".")
+            total_seconds = int(minutes)*60 + int(seconds) + delay
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            new_lyrics += f"[{minutes:02}:{seconds:02}.{ms}] {words}\n"
+        return new_lyrics
+    except:
+        return lyrics
+
 async def get_lyrics(track, artist, user):
     song=await get_song_by_title(f"{track} - {artist}")
     if song:
-        return await get_local_lyrics(song)
+        lrc = await get_local_lyrics(song)
+        return await adjust_lyrics(lrc, song.delay)
     else:
         lbd, lid, lrc = await search_lyrics(track, artist)
         if lrc=="tryAgain":

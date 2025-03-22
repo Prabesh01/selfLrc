@@ -33,7 +33,7 @@ def perm_check(request, obj):
 class SongAdmin(admin.ModelAdmin):
     list_display = ('title', 'lyrics_db', 'delay')
     readonly_fields = ('get_lyrics_text',) 
-
+    search_fields = ['title','updated_title']
     fieldsets = (
         (None, {
             'fields': ('title', 'updated_title', 'lyrics_id', 'lyrics_db', 'delay', 'custom_lyrics', 'get_lyrics_text','user',)
