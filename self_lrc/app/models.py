@@ -10,8 +10,19 @@ class Song(models.Model):
     delay = models.IntegerField(default=0)
     custom_lyrics = models.TextField(blank=True, null=True)
 
-    def get_lyrics_text(self):
+    async def get_lyrics_text_async(self):
         from .utils import get_local_lyrics
-        return get_local_lyrics(self)    
+        data = await get_local_lyrics(self)   
+        return data
     
+    def get_lyrics_text(self):
+        """Synchronous wrapper for the async method"""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(self.get_lyrics_text_async())
+        finally:
+            loop.close()
+                
     get_lyrics_text.short_description = 'Lyrics'

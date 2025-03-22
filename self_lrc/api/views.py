@@ -2,16 +2,22 @@ from app.utils import get_lyrics
 import json
 from django.http import HttpResponse
 from django.contrib.auth.models import User
-from app.models import Song
 from random import randint
+from asgiref.sync import sync_to_async
 
 temp={}
 
-def search_songs(request, username):
-    global temp
+@sync_to_async
+def get_user_by_username(username):
     try:
-        user = User.objects.get(username=username)
-    except:
+        return User.objects.get(username=username)
+    except User.DoesNotExist:
+        return None
+
+async def search_songs(request, username):
+    global temp
+    user = await get_user_by_username(username)
+    if not user:
         return HttpResponse(json.dumps([{"trackName":'N/A',"artistName":'N/A',"albumName":'N/A',"syncedLyrics":"[00:10.00] UnAuthorized!\n[00:15.00] Invalid User"}]), content_type="application/json")
 
     q=clean_fname(request.GET.get('q',''))
@@ -23,7 +29,7 @@ def search_songs(request, username):
         return HttpResponse(json.dumps([]), content_type="application/json")
     if q:
         track_name=q
-    lrc=get_lyrics(track_name,artist_name, user)
+    lrc=await get_lyrics(track_name,artist_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps([]), content_type="application/json")  
     if lrc=="NotFound":
@@ -40,17 +46,16 @@ def clean_fname(name):
         return '.'.join(name.split('.')[:-1])
     return name
 
-def get_lyrics_id(request, username, lid):
+async def get_lyrics_id(request, username, lid):
     global temp
     lrc=temp[str(lid)]
     if len(temp)>50:
         temp={}
     return HttpResponse(json.dumps(lrc), content_type="application/json")
 
-def get_songs(request, username):
-    try:
-        user = User.objects.get(username=username)
-    except:
+async def get_songs(request, username):
+    user = await get_user_by_username(username)
+    if not user:
         return HttpResponse(json.dumps({"syncedLyrics":"[00:10.00] UnAuthorized!\n[00:15.00] Invalid User"}), content_type="application/json")
 
     track_name = clean_fname(request.GET.get('track_name',''))
@@ -58,7 +63,7 @@ def get_songs(request, username):
     album_name = clean_fname(request.GET.get('album_name',''))
     if not track_name:
         return HttpResponse(json.dumps({"message":"Track name not specified","name":"TrackNotProvided","statusCode":404}), content_type="application/json")
-    lrc=get_lyrics(track_name,artist_name, user)
+    lrc=await get_lyrics(track_name,artist_name, user)
     if lrc=="tryAgain":
         return HttpResponse(json.dumps({"message":"Failed to find specified track","name":"TrackNotFound","statusCode":404}), content_type="application/json")        
     if lrc=="NotFound":

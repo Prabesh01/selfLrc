@@ -1,4 +1,3 @@
-import requests
 import urllib
 import os
 import json
@@ -7,6 +6,9 @@ from dotenv import load_dotenv
 import base64
 import pyotp
 import time
+import httpx
+
+import asyncio
 
 class SpotifyTokenManager:
     def __init__(self):
@@ -26,16 +28,24 @@ class SpotifyTokenManager:
 
         self.spotify_access_token = ""
         self.lyrics_token = ""
-        self._load_or_refresh_tokens()
-    
-    def _load_or_refresh_tokens(self):
-        if self._load_tokens_from_cache():
+
+        self.lock = asyncio.Lock()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._initialize())
+        
+    async def _initialize(self):
+        self.client = httpx.AsyncClient(timeout=10.0)
+        await self._load_or_refresh_tokens()
+
+    async def _load_or_refresh_tokens(self):
+        if await self._load_tokens_from_cache():
             print("Loaded tokens from cache")
         else:
             print("Refreshing tokens...")
-            self.refresh_spotify_token()
+            await self.refresh_spotify_token()
+            await self.refresh_spotify_lrc_token()
     
-    def _load_tokens_from_cache(self):
+    async def _load_tokens_from_cache(self):
         try:
             if not self.cache_file.exists():
                 return False
@@ -51,7 +61,7 @@ class SpotifyTokenManager:
             print(f"Error loading from cache: {e}")
             return False
     
-    def _save_tokens_to_cache(self):        
+    async def _save_tokens_to_cache(self):        
         cache_data = {
             'spotify_access_token': self.spotify_access_token,
             'lyrics_token': self.lyrics_token,
@@ -89,90 +99,102 @@ class SpotifyTokenManager:
 
         return cleaned
 
-    def refresh_spotify_token(self):
-        if self.state1:
-            return False
-        self.state1=True
+    async def refresh_spotify_token(self):
+        async with self.lock:
+            if self.state1:
+                return False
+            self.state1 = True
         print('Refreshing Spotify tokens...')
         try:
             auth_header = base64.b64encode(f'{self.client_id}:{self.client_secret}'.encode()).decode()
-            response = requests.post(
+            response = await self.client.post(
                 'https://accounts.spotify.com/api/token',
-                timeout=5,
                 data=f"grant_type=refresh_token&refresh_token={self.refresh_token}",
                 headers={
                     "Authorization": f"Basic {auth_header}",
                     "Content-Type": "application/x-www-form-urlencoded"
                 }
             )
-            self.state1=False
+            async with self.lock:
+                self.state1 = False
             if response.status_code == 200:
-                self.spotify_access_token = response.json()['access_token']
+                data = response.json()
+
+                self.spotify_access_token = data['access_token']
+                await self._save_tokens_to_cache()
+                print('Spotify Tokens refreshed and cached successfully')
+
+                return True
+
             else:
                 print(f"Failed to refresh Spotify token: {response.status_code}")
                 return False
         except Exception as e:
             print(f"Error refreshing Spotify token: {e}")
-            self.state1=False
+            async with self.lock:
+                self.state1 = False
             return False
         
-    def refresh_spotify_lrc_token(self):
-        if self.state2:
-            return False
-        self.state2=True
+    async def refresh_spotify_lrc_token(self):
+        async with self.lock:
+            if self.state2:
+                return False
+            self.state2 = True
         print('Refreshing lyrics tokens...')
         try:
-            server_time = requests.get('https://open.spotify.com/server-time').json()['serverTime']
+            server_time_response = await self.client.get('https://open.spotify.com/server-time')
+            server_time = server_time_response.json()['serverTime']
             totp = self.generate_totp(server_time)
             timestamp = int(time.time())
             
-            response = requests.get(
+            response = await self.client.get(
                 f'https://open.spotify.com/get_access_token?reason=transport&productType=web_player&totp={totp}&totpVer=5&totpServer={timestamp}',
                 headers={"Cookie": f"sp_dc={self.sp_dc_cookie}"},
                 timeout=5
             )
-            self.state2=False
+            async with self.lock: self.state2=False
             if response.status_code == 200 and 'accessToken' in response.json():
                 self.lyrics_token = response.json()['accessToken']
+                await self._save_tokens_to_cache()
+                print('Lrc Tokens refreshed and cached successfully')
+                return True
             else:
                 print(f"Failed to refresh lyrics token: {response.status_code}")
                 return False
         except Exception as e:
             print(f"Error refreshing lyrics token: {e}")
-            self.state2=False
+            async with self.lock: self.state2=False
             return False
         
-        # Save tokens to cache
-        self._save_tokens_to_cache()
-        print('Tokens refreshed and cached successfully')
-        return True
-
-    def spotify_search_song(self, name, re=True):
+    async def spotify_search_song(self, name, re=True):
         """Search for a song on Spotify and return its ID"""
         try:
-            response = requests.get(
+            response = await self.client.get(
                 f'https://api.spotify.com/v1/search?q={urllib.parse.quote(name)}&type=track&limit=1',
                 timeout=5,
                 headers={"Authorization": f"Bearer {self.spotify_access_token}"}
-            ).json()
+            )
+            data = response.json()
             
-            if not 'tracks' in response:
+            if not 'tracks' in data:
                 if re:
-                    if self.refresh_spotify_token(): return self.spotify_search_song(name, False)
+                    refresh_success = await self.refresh_spotify_token()
+                    if refresh_success:
+                        data = await self.spotify_search_song(name, False)
+                        return data
                     else: return 'tryAgain'
                 return None
             
-            return response['tracks']['items'][0]['id']
-            
+            return data['tracks']['items'][0]['id']
         except Exception as e:
-            print(f"Error searching for song: {e}")
-            return None
+            print(f"Error searching for song: {e} {type(e)}")
+            return "tryAgain"
 
-    def get_spotify_lyrics(self, track_id, re=True):
+    async def get_spotify_lyrics(self, track_id, re=True):
         """Get lyrics for a Spotify track by ID"""
         if track_id=='tryAgain': return track_id
         try:
-            response = requests.get(
+            response = await self.client.get(
                 f'https://spclient.wg.spotify.com/color-lyrics/v2/track/{track_id}/?format=json&market=from_token',
                 timeout=5,
                 headers={
@@ -185,7 +207,10 @@ class SpotifyTokenManager:
             # Check if token is expired
             if response.status_code == 401:
                 if re:
-                    if self.refresh_spotify_lrc_token(): return self.get_spotify_lyrics(track_id, False)
+                    refresh_success = await self.refresh_spotify_lrc_token()
+                    if refresh_success: 
+                        data = await self.get_spotify_lyrics(track_id, False)
+                        return data
                 return 'tryAgain'
             
             if response.status_code == 200:
@@ -196,7 +221,7 @@ class SpotifyTokenManager:
                 return None
                 
         except Exception as e:
-            print(f"Error getting lyrics: {e}")
+            print(f"Error getting lyrics: {e}, Type: {type(e)}")
             return 'tryAgain'
 
     def _parse_lyrics(self, lines):
@@ -211,15 +236,13 @@ class SpotifyTokenManager:
             lyrics += f"[{minutes:02}:{seconds:02}.{int(fractional_seconds * 100):02}] {line['words']}\n"
         return lyrics
 
-# Create a singleton instance
 spotify = SpotifyTokenManager()
 
-# Export the functions and the singleton for use in other files
-def spotify_search_song(name):
-    return spotify.spotify_search_song(name)
+async def spotify_search_song(name):
+    return await spotify.spotify_search_song(name)
 
-def get_spotify_lyrics(track_id):
-    return spotify.get_spotify_lyrics(track_id)
+async def get_spotify_lyrics(track_id):
+    return await spotify.get_spotify_lyrics(track_id)
 
-def refresh_tokens():
-    return spotify.refresh_spotify_token()
+async def refresh_tokens():
+    return await spotify.refresh_spotify_token()

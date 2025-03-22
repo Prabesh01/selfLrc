@@ -5,6 +5,7 @@ from .models import Song
 import re
 from .utils import update_lyrics
 from django.utils.translation import gettext_lazy as _
+from asgiref.sync import async_to_sync
 
 def view_perm_check(request):
     return request.user.is_superuser
@@ -50,7 +51,9 @@ class SongAdmin(admin.ModelAdmin):
             name, artist = match.groups()
             # if not obj.lyrics_db:
             if 'updated_title' in form.changed_data:
-                update_lyrics(name.strip(), artist.strip(), obj)
+                # update_lyrics(name.strip(), artist.strip(), obj)
+                async_to_sync(update_lyrics)(name.strip(), artist.strip(), obj)
+
         else:
             self.message_user(request, _("Invalid Title Format!"), level='error')
             return
