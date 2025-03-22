@@ -23,7 +23,6 @@ class SpotifyTokenManager:
         
         self.spotify_access_token = ""
         self.lyrics_token = ""
-        
         self._load_or_refresh_tokens()
     
     def _load_or_refresh_tokens(self):
@@ -100,7 +99,6 @@ class SpotifyTokenManager:
                     "Content-Type": "application/x-www-form-urlencoded"
                 }
             )
-            
             if response.status_code == 200:
                 self.spotify_access_token = response.json()['access_token']
             else:
@@ -122,7 +120,6 @@ class SpotifyTokenManager:
                 headers={"Cookie": f"sp_dc={self.sp_dc_cookie}"},
                 timeout=5
             )
-            
             if response.status_code == 200 and 'accessToken' in response.json():
                 self.lyrics_token = response.json()['accessToken']
             else:
@@ -149,13 +146,13 @@ class SpotifyTokenManager:
             if not 'tracks' in response:
                 if re:
                     if self.refresh_spotify_token(): return self.spotify_search_song(name, False)
-                return 'tryAgain'
+                return None
             
             return response['tracks']['items'][0]['id']
             
         except Exception as e:
             print(f"Error searching for song: {e}")
-            return 'tryAgain'
+            return None
 
     def get_spotify_lyrics(self, track_id, re=True):
         """Get lyrics for a Spotify track by ID"""
