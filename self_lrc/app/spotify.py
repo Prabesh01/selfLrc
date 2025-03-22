@@ -21,6 +21,9 @@ class SpotifyTokenManager:
         self.client_id = os.environ.get("spotify_client_id")
         self.client_secret = os.environ.get("spotify_client_secret")
         
+        self.state1=False
+        self.state2=False
+
         self.spotify_access_token = ""
         self.lyrics_token = ""
         self._load_or_refresh_tokens()
@@ -87,6 +90,9 @@ class SpotifyTokenManager:
         return cleaned
 
     def refresh_spotify_token(self):
+        if self.state1:
+            return False
+        self.state1=True
         print('Refreshing Spotify tokens...')
         try:
             auth_header = base64.b64encode(f'{self.client_id}:{self.client_secret}'.encode()).decode()
@@ -99,6 +105,7 @@ class SpotifyTokenManager:
                     "Content-Type": "application/x-www-form-urlencoded"
                 }
             )
+            self.state1=False
             if response.status_code == 200:
                 self.spotify_access_token = response.json()['access_token']
             else:
@@ -106,9 +113,13 @@ class SpotifyTokenManager:
                 return False
         except Exception as e:
             print(f"Error refreshing Spotify token: {e}")
+            self.state1=False
             return False
         
     def refresh_spotify_lrc_token(self):
+        if self.state2:
+            return False
+        self.state2=True
         print('Refreshing lyrics tokens...')
         try:
             server_time = requests.get('https://open.spotify.com/server-time').json()['serverTime']
@@ -120,6 +131,7 @@ class SpotifyTokenManager:
                 headers={"Cookie": f"sp_dc={self.sp_dc_cookie}"},
                 timeout=5
             )
+            self.state2=False
             if response.status_code == 200 and 'accessToken' in response.json():
                 self.lyrics_token = response.json()['accessToken']
             else:
@@ -127,6 +139,7 @@ class SpotifyTokenManager:
                 return False
         except Exception as e:
             print(f"Error refreshing lyrics token: {e}")
+            self.state2=False
             return False
         
         # Save tokens to cache
@@ -146,6 +159,7 @@ class SpotifyTokenManager:
             if not 'tracks' in response:
                 if re:
                     if self.refresh_spotify_token(): return self.spotify_search_song(name, False)
+                    else: return 'tryAgain'
                 return None
             
             return response['tracks']['items'][0]['id']
@@ -156,6 +170,7 @@ class SpotifyTokenManager:
 
     def get_spotify_lyrics(self, track_id, re=True):
         """Get lyrics for a Spotify track by ID"""
+        if track_id=='tryAgain': return track_id
         try:
             response = requests.get(
                 f'https://spclient.wg.spotify.com/color-lyrics/v2/track/{track_id}/?format=json&market=from_token',
