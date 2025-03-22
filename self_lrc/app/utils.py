@@ -1,8 +1,22 @@
 import httpx
 import re
-from .spotify import *
+from app.spotify import SpotifyTokenManager
 from asgiref.sync import sync_to_async
 from app.models import Song
+
+spotify = None
+
+async def get_spotify_instance():
+    global spotify
+    if spotify is None:
+        spotify = await SpotifyTokenManager.create()
+    return spotify
+
+async def close_spotify_instance():
+    global spotify
+    if spotify is not None:
+        await spotify.close()
+        spotify = None
 
 @sync_to_async
 def get_song_by_title(title):
@@ -26,14 +40,17 @@ async def lrclib_search(t, r):
             return None, None
 
 async def search_spotify(t, r):
-    lid = await spotify_search_song(t + " " + r)
-    if lid:
-        lrc = await get_spotify_lyrics(lid)
-        if not lrc:
-            return None, None
-        return lid, lrc
-    else: return None, None
-
+    spotify = await get_spotify_instance()
+    try:
+        lid = await spotify.spotify_search_song(t + " " + r)
+        if lid:
+            lrc = await spotify.get_spotify_lyrics(lid)
+        
+            if not lrc:
+                return None, None
+            return lid, lrc
+        else: return None, None
+    finally: await close_spotify_instance()
 
 async def search_lyrics(track, artist):
     lid, lrc = await lrclib_search(track, artist)
@@ -49,7 +66,7 @@ async def get_local_lyrics(song):
         return "NotFound"
     lid= song.lyrics_id
     custom_lyrics = song.custom_lyrics
-    if song.custom_lyrics and not song.custom_lyrics.strip(): custom_lyrics = "NotFound"
+    if not custom_lyrics or  (custom_lyrics and not custom_lyrics.strip()): custom_lyrics = "NotFound"
     if lid==0:
         return custom_lyrics
     if not lid:
@@ -71,7 +88,9 @@ async def get_local_lyrics(song):
             response = await client.get(f"https://lrclib.net/api/get/{lid}")
             return response.json()['syncedLyrics']    
     elif ldb==1:
-        return await get_spotify_lyrics(song.lyrics_id)
+        spotify = await get_spotify_instance()
+        try: return await spotify.get_spotify_lyrics(song.lyrics_id)
+        finally: await close_spotify_instance()
     else:
         return custom_lyrics
 

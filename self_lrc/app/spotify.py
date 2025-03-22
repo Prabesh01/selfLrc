@@ -30,18 +30,21 @@ class SpotifyTokenManager:
         self.lyrics_token = ""
 
         self.lock = asyncio.Lock()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._initialize())
-        
-    async def _initialize(self):
+        self.client = None
+
+    @classmethod
+    async def create(cls):
+        instance = cls()
+        await instance.initialize()
+        return instance
+
+    async def initialize(self):
         self.client = httpx.AsyncClient(timeout=10.0)
         await self._load_or_refresh_tokens()
 
     async def _load_or_refresh_tokens(self):
-        if await self._load_tokens_from_cache():
-            print("Loaded tokens from cache")
-        else:
-            print("Refreshing tokens...")
+        if not await self._load_tokens_from_cache():
+            print("Cached Tokens expired! Refreshing both tokens...")
             await self.refresh_spotify_token()
             await self.refresh_spotify_lrc_token()
     
@@ -122,8 +125,6 @@ class SpotifyTokenManager:
 
                 self.spotify_access_token = data['access_token']
                 await self._save_tokens_to_cache()
-                print('Spotify Tokens refreshed and cached successfully')
-
                 return True
 
             else:
@@ -156,7 +157,6 @@ class SpotifyTokenManager:
             if response.status_code == 200 and 'accessToken' in response.json():
                 self.lyrics_token = response.json()['accessToken']
                 await self._save_tokens_to_cache()
-                print('Lrc Tokens refreshed and cached successfully')
                 return True
             else:
                 print(f"Failed to refresh lyrics token: {response.status_code}")
@@ -203,7 +203,6 @@ class SpotifyTokenManager:
                     "User-Agent": "Mozilla/5.0"
                 }
             )
-            
             # Check if token is expired
             if response.status_code == 401:
                 if re:
@@ -236,13 +235,5 @@ class SpotifyTokenManager:
             lyrics += f"[{minutes:02}:{seconds:02}.{int(fractional_seconds * 100):02}] {line['words']}\n"
         return lyrics
 
-spotify = SpotifyTokenManager()
-
-async def spotify_search_song(name):
-    return await spotify.spotify_search_song(name)
-
-async def get_spotify_lyrics(track_id):
-    return await spotify.get_spotify_lyrics(track_id)
-
-async def refresh_tokens():
-    return await spotify.refresh_spotify_token()
+    async def close(self):
+        await self.client.aclose()
