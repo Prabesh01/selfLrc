@@ -1,6 +1,6 @@
 import requests
 import re
-from .spotify import * 
+from .spotify import *
 
 def lrclib_search(t, r):
     r=requests.get("https://lrclib.net/api/get?track_name="+t+"&artist_name="+r+"&album_name=")
@@ -11,9 +11,9 @@ def lrclib_search(t, r):
         return None, None
 
 def search_spotify(t, r):
-    lid = spotify_seach_song(t + " " + r)
+    lid = spotify_search_song(t + " " + r)
     if lid:
-        lrc = get_spotify_Lyrics(lid)
+        lrc = get_spotify_lyrics(lid)
         if not lrc:
             return None, None
         return lid, lrc
@@ -54,7 +54,7 @@ def get_local_lyrics(song):
     if ldb==2:
         return requests.get(f"https://lrclib.net/api/get/{lid}").json()['syncedLyrics']
     elif ldb==1:
-        return get_spotify_Lyrics(song.lyrics_id)
+        return get_spotify_lyrics(song.lyrics_id)
     else:
         return custom_lyrics
 
