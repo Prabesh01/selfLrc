@@ -25,4 +25,5 @@ urlpatterns = [
     path('<str:username>/api/get/<int:lid>', views_api.get_lyrics_id,name='get_lyrics_id'),
     path('<str:username>/api/get', views_api.get_songs,name='get_lrc'),
     path('', views_app.get_home,name='get_home'),
+    path('submit/', views_app.submit_cookie,name='submit_cookie'),
 ]

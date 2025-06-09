@@ -2,7 +2,7 @@ import urllib
 import os
 import json
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 import base64
 import pyotp
 import time
@@ -13,8 +13,8 @@ import asyncio
 class SpotifyTokenManager:
     def __init__(self):
         BASE_DIR = Path(__file__).resolve().parent.parent.parent
-        ENV_FILE = BASE_DIR / '.env'
-        load_dotenv(ENV_FILE)
+        self.ENV_FILE = BASE_DIR / '.env'
+        load_dotenv(self.ENV_FILE)
         
         self.cache_file = BASE_DIR / 'spotify_token_cache.json'
         
@@ -25,6 +25,7 @@ class SpotifyTokenManager:
         
         self.state1=False
         self.state2=False
+        self.state0=False
 
         self.spotify_access_token = ""
         self.lyrics_token = ""
@@ -135,7 +136,40 @@ class SpotifyTokenManager:
             async with self.lock:
                 self.state1 = False
             return False
-        
+
+    async def validate_spotify_cookie(self,cookie):
+        if cookie==self.sp_dc_cookie: return True
+        async with self.lock:
+            if self.state0:
+                return False
+            self.state0 = True
+        print('Validating user provided cookie...')
+        try:
+            server_time_response = await self.client.get('https://open.spotify.com/api/server-time')
+
+            server_time = server_time_response.json()['serverTime']
+            totp = self.generate_totp(server_time)
+            timestamp = int(time.time())
+
+            response = await self.client.get(
+                f'https://open.spotify.com/get_access_token?reason=transport&productType=web_player&totp={totp}&totpVer=5&totpServer={timestamp}',
+                headers={"Cookie": f"sp_dc={cookie}"},
+                timeout=5
+            )
+
+            async with self.lock: self.state0=False
+            if response.status_code == 200 and 'accessToken' in response.json():
+                self.sp_dc_cookie=cookie
+                set_key(self.ENV_FILE, "spitify_sp_dc_cookie", cookie)
+                self.lyrics_token = response.json()['accessToken']
+                await self._save_tokens_to_cache()
+                return True
+            else: return False
+        except Exception as e:
+            print(f"Error validate sp_dc cookie: {e}")
+            async with self.lock: self.state0=False
+            return False
+
     async def refresh_spotify_lrc_token(self):
         async with self.lock:
             if self.state2:
@@ -143,7 +177,7 @@ class SpotifyTokenManager:
             self.state2 = True
         print('Refreshing lyrics tokens...')
         try:
-            server_time_response = await self.client.get('https://open.spotify.com/server-time')
+            server_time_response = await self.client.get('https://open.spotify.com/api/server-time')
             server_time = server_time_response.json()['serverTime']
             totp = self.generate_totp(server_time)
             timestamp = int(time.time())

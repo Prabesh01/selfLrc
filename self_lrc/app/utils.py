@@ -148,3 +148,7 @@ async def update_lyrics(track, artist, song):
     if lrc!="tryAgain": await update_song_fields()
 
     return lrc
+
+async def validate_cookie(cookie):
+    spotify = await get_spotify_instance()
+    return await spotify.validate_spotify_cookie(cookie)

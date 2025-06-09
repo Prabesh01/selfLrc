@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from .forms import CustomPasswordChangeForm, AddUserForm
+from .utils import validate_cookie
+from django.http import HttpResponse
 
 def get_home(request):
     if not request.user.is_authenticated: return redirect('/admin/login/')
@@ -30,3 +32,10 @@ def get_home(request):
         else:
             messages.error(request, 'Please correct the error below.')
             return render(request, site, {'form': form})
+
+async def submit_cookie(request):
+    cookie=request.GET.get('cookie')
+    if not cookie or (not '-' in cookie or len(cookie)<100): return HttpResponse("Invalid cookie!", status=400)
+    valid = await validate_cookie(cookie)
+    if valid: return HttpResponse("Thanks for contributing :)", status=200)
+    else: return HttpResponse("Failed to validate the cookie", status=400)
