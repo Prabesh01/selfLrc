@@ -44,7 +44,7 @@ _Since selfLrc's API uses exact same format as lrclib, simply substituting the a
  - Edit `app/src/main/java/pl/lambada/songsync/data/remote/lyrics_providers/others/LRCLibAPI.kt` and set `baseURL` tp `https://<url-to-access-your-selflrc-django-website>/<username>/api/` 
  - Create apk with .... [same as above]
 
- ## SongSync
+ ## FastLyrics
  - clone: https://github.com/teccheck/FastLyrics
  - Edit `app/src/main/java/io/github/teccheck/fastlyrics/api/provider/LrcLib.kt` and set `baseURL` tp `https://<url-to-access-your-selflrc-django-website>/<username>/api/` 
  - Create apk with .... [same as above]
