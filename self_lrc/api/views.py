@@ -14,7 +14,7 @@ def get_user_by_username(username):
     except User.DoesNotExist:
         return None
 
-async def search_songs(request, username):
+async def search_songs(request, username, nolist=False):
     global temp
     user = await get_user_by_username(username)
     if not user:
@@ -39,7 +39,7 @@ async def search_songs(request, username):
     lid=str(randint(0,5555))
     tosend=[{"id":lid, "name":track_name, "duration":int(duration), "instrumental":False, "plainLyrics":"", "trackName":track_name,"artistName":artist_name,"albumName":album_name, "syncedLyrics":lrc}]
     temp[lid]=tosend[0]
-    return HttpResponse(json.dumps(tosend), content_type="application/json")
+    return HttpResponse(json.dumps(tosend[0] if nolist else tosend), content_type="application/json")
 
 def clean_fname(name):
     if '.' in name and len(name.split('.')[-1])<5:
@@ -54,6 +54,9 @@ async def get_lyrics_id(request, username, lid):
     return HttpResponse(json.dumps(lrc), content_type="application/json")
 
 async def get_songs(request, username):
+    if'fastlyrics' in request.META.get('HTTP_USER_AGENT', 'Unknown').lower():
+        response = await search_songs(request, username, True)
+        return response
     user = await get_user_by_username(username)
     if not user:
         return HttpResponse(json.dumps({"syncedLyrics":"[00:10.00] UnAuthorized!\n[00:15.00] Invalid User"}), content_type="application/json")
