@@ -1,7 +1,7 @@
 # Self-hosted lyrics api.
 - Fetches lyrics from lrclib.net and spotify.
 - Manage your lyrics from django admin panel.
-- Focused for poweramp. supports SongSync and harmonoid as well.
+- Focused for poweramp. supports SongSync, FastLyrics and harmonoid as well.
 
 ### See it in action
 - Download latest release from https://github.com/Prabesh01/selfLrc/releases/latest
@@ -25,6 +25,8 @@ Login as `admin`:`pass` on http://127.0.0.1:8000/
 
  ### modify lyrics apps to use selfLrc API
 
+_Since selfLrc's API uses exact same format as lrclib, simply substituting the api url in apps will make the app fetch lyrics from selfLrc instead of lrclib._
+
  ## lyrics for Poweramp
  - clone: https://github.com/abhishekabhi789/LyricsForPoweramp.git
  - Edit `app/src/main/java/io/github/abhishekabhi789/lyricsforpoweramp/helpers/LrclibApiHelper.kt` and set `API_BASE_URL` to the `https://<url-to-access-your-selflrc-django-website>/<username>/api`
@@ -35,4 +37,9 @@ Login as `admin`:`pass` on http://127.0.0.1:8000/
  ## SongSync
  - clone: https://github.com/Lambada10/SongSync.git
  - Edit `app/src/main/java/pl/lambada/songsync/data/remote/lyrics_providers/others/LRCLibAPI.kt` and set `baseURL` tp `https://<url-to-access-your-selflrc-django-website>/<username>/api/` 
+ - Create apk with .... [same as above]
+
+ ## SongSync
+ - clone: https://github.com/teccheck/FastLyrics
+ - Edit `app/src/main/java/io/github/teccheck/fastlyrics/api/provider/LrcLib.kt` and set `baseURL` tp `https://<url-to-access-your-selflrc-django-website>/<username>/api/` 
  - Create apk with .... [same as above]
