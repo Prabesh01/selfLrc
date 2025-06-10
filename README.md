@@ -4,8 +4,13 @@
 - Focused for poweramp. supports SongSync, FastLyrics and harmonoid as well.
 
 ### See it in action
-- Download latest release from https://github.com/Prabesh01/selfLrc/releases/latest
-- Login as demo user in https://lrc.cote.ws/ to view dashboard. 
+- Web:
+  - https://lrc.cote.ws/demo/api/search?q=bistarai%20bistarai
+  - https://lrc.cote.ws/demo/api/search?track_name=exile&artist_name=taylor&album_name=folklore
+  - https://lrc.cote.ws/demo/api/get?track_name=question&artist_name=Rhett%20Miller&album_name=
+- App:
+  - Download latest release from https://github.com/Prabesh01/selfLrc/releases/latest
+  - Login as demo user in https://lrc.cote.ws/ to view dashboard. 
 
 ### Self-Host
 - Copy .env.examples to .env and fill required values
@@ -20,8 +25,8 @@ Login as `admin`:`pass` on http://127.0.0.1:8000/
 - These users can now fetch lyrics from
  - /api/search?q=''
  - /api/search?track_name=&artist_name=&album_name=
- - /api/get?q=''
  - /api/get?track_name=&artist_name=&album_name=
+ - /api/get/xxx:id
 
  ### modify lyrics apps to use selfLrc API
 
