@@ -183,7 +183,7 @@ class SpotifyTokenManager:
             timestamp = int(time.time())
             
             response = await self.client.get(
-                f'https://open.spotify.com/get_access_token?reason=transport&productType=web_player&totp={totp}&totpVer=5&totpServer={timestamp}',
+                f'https://open.spotify.com/api/token?reason=transport&productType=web_player&totp={totp}&totpVer=5&totpServer={timestamp}',
                 headers={"Cookie": f"sp_dc={self.sp_dc_cookie}"},
                 timeout=5
             )
