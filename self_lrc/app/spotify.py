@@ -224,6 +224,21 @@ class SpotifyTokenManager:
             print(f"Error searching for song: {e} {type(e)}")
             return "tryAgain"
 
+    async def get_track_info(self, track_id):
+        try:
+            response = await self.client.get(
+                f'https://api.spotify.com/v1/tracks/{track_id}',
+                timeout=5,
+                headers={
+                    "Authorization": f"Bearer {self.spotify_access_token}",
+                }
+            )
+
+            if response.status_code!=200: return None, None, None, None
+            track = response.json()
+            return track["name"],track["artists"][0]["name"], track["album"]["name"], track["duration_ms"]
+        except: return None, None, None, None
+
     async def get_spotify_lyrics(self, track_id, re=True):
         """Get lyrics for a Spotify track by ID"""
         if track_id=='tryAgain': return track_id
