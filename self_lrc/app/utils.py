@@ -3,9 +3,11 @@ import re
 from app.spotify import SpotifyTokenManager
 from asgiref.sync import sync_to_async
 from app.models import Song
-import hashlib
 import asyncio
-import binascii
+from .cryptographic_challenge_solver import CryptoChallengeSolver
+
+import os
+num_threads = os.cpu_count() or 1
 
 spotify = None
 headers = {
@@ -29,16 +31,15 @@ def get_song_by_title(title):
     return Song.objects.filter(title=title).first()
 
 @sync_to_async
-def create_song(user, title, lyrics_id=None, lyrics_db=None):    
+def create_song(user, title, lyrics_id=None, lyrics_db=None):
     if lyrics_id and lyrics_db:
         return Song.objects.create(user=user, title=title, lyrics_id=lyrics_id, lyrics_db=lyrics_db)
     else:
         return Song.objects.create(user=user, title=title)
 
-
-async def lrclib_search(t, r):
+async def lrclib_search(t, r, a=""):
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response=await client.get("https://lrclib.net/api/get?track_name="+t+"&artist_name="+r+"&album_name=", headers=headers)
+        response=await client.get("https://lrclib.net/api/get?track_name="+t+"&artist_name="+r+"&album_name="+a, headers=headers)
         r = response.json()
         if 'syncedLyrics' in r:
             return r['id'], r['syncedLyrics']
@@ -57,33 +58,16 @@ async def convert_to_plain_lrc(lrc):
     except:
         return plain_lyrics
 
-
-async def verify_nonce(result_bytes, target_bytes):
-    for r, t in zip(result_bytes, target_bytes):
-        if r > t:
-            return False
-        #elif r < t:
-        #    return True
-    return True
-
-async def solve_challenge(prefix, target_hex):
-    target_bytes = binascii.unhexlify(target_hex)
-    nonce = 0
-
-    while True:
-        input_str = f"{prefix}{nonce}"
-        hashed = hashlib.sha256(input_str.encode('utf-8')).digest()
-
-        valid = await verify_nonce(hashed, target_bytes)
-        if valid:
-            return nonce
-        nonce += 1
-
 async def contribute_lyrics_to_lrclib(lid, lrc):
     spotify = await get_spotify_instance()
     trackName, artistName, albumName, duration = await spotify.get_track_info(lid)
     await close_spotify_instance()
+
     if not trackName: return
+
+    lrclib_lid, lrclib_lrc = await lrclib_search(trackName, artistName, albumName)
+    if lrclib_lid and lrclib_lrc: return
+
     plainLyrics = await convert_to_plain_lrc(lrc)
     payload = { "trackName": trackName, "artistName": artistName, "albumName": albumName, "duration": duration, "plainLyrics": plainLyrics.strip(), "syncedLyrics": lrc}
 
@@ -91,13 +75,14 @@ async def contribute_lyrics_to_lrclib(lid, lrc):
         response=await client.post("https://lrclib.net/api/request-challenge", headers=headers)
         prefix,target = response.json().values()
 
-    nonce = await solve_challenge(prefix,target)
+    nonce = CryptoChallengeSolver.solve(
+        prefix, target, num_threads=num_threads
+    )
     con_headers = headers.copy()
-    con_headers["X-Publish-Token"]=nonce
+    con_headers["X-Publish-Token"]=f"{prefix}:{nonce}"
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         response=await client.post("https://lrclib.net/api/publish", json=payload, headers=con_headers)
-        print(response.text)
 
 async def search_spotify(t, r):
     spotify = await get_spotify_instance()
@@ -108,8 +93,8 @@ async def search_spotify(t, r):
         
             if not lrc:
                 return None, None
-            # else:
-                # asyncio.create_task(contribute_lyrics_to_lrclib(lid,lrc))
+            else:
+                asyncio.create_task(contribute_lyrics_to_lrclib(lid,lrc))
                 # await contribute_lyrics_to_lrclib(lid,lrc)
             return lid, lrc
         else: return None, None
