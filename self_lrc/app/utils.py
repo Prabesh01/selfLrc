@@ -6,6 +6,19 @@ from app.models import Song
 import asyncio
 from .cryptographic_challenge_solver import CryptoChallengeSolver
 
+from base64 import b64encode
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+ENV_FILE = BASE_DIR / '.env'
+load_dotenv(ENV_FILE)
+ntfy_url=os.environ.get("ntfy_url")
+ntfy_user=os.environ.get("ntfy_user")
+ntfy_password=os.environ.get("ntfy_password")
+credentials = f"{ntfy_user}:{ntfy_password}"
+b64_credentials = b64encode(credentials.encode('utf-8')).decode('utf-8')
+
 import os
 num_threads = os.cpu_count() or 1
 
@@ -83,6 +96,9 @@ async def contribute_lyrics_to_lrclib(lid, lrc):
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         response=await client.post("https://lrclib.net/api/publish", json=payload, headers=con_headers)
+    if response.status_code!=200: return
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await client.post(ntfy_url, data=f"{trackName} by {artistName}".encode(encoding='utf-8'), headers={"Authorization":"Basic "+b64_credentials, "Title": "Contributed to lrclib.net"})
 
 async def search_spotify(t, r):
     spotify = await get_spotify_instance()
